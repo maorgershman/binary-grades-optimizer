@@ -124,6 +124,10 @@ def _parse_courses(lines: list[str]) -> list[Course]:
         id, line = _extract_id(line)
         semester, line = _extract_semester(line)
         grade, line = _extract_grade(line)
+        
+        if line == "SEXUAL HARASSMENT PREVENTION":
+            line += " 0"
+        
         credits, line = _extract_credits(line)
         name = CourseName(line)
         return Course(
@@ -138,6 +142,9 @@ def _parse_courses(lines: list[str]) -> list[Course]:
 
 def parse_transcript_file(transcript_file_path: Path) -> Transcript:
     dirty_pages = _extract_dirty_pages(transcript_file_path)
+    if len(dirty_pages) == 3:
+        dirty_pages.pop()
+    
     clean_pages = _clean_pages(dirty_pages)
     lines = _extract_lines(clean_pages)
     courses = _parse_courses(lines)
