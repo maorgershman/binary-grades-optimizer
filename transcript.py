@@ -101,6 +101,12 @@ def _extract_grade(line: str) -> tuple[CourseGrade, str]:
         line = line[:idx]
         return SpecialGrade.EXEMPTION_WITH_POINTS, line
     
+    delim = " Exemption"
+    idx = line.rfind(delim)
+    if idx != -1:
+        line = line[:idx]
+        return SpecialGrade.EXEMPTION_WITH_POINTS, line
+    
     delim = " Pass"
     idx = line.rfind(delim)
     if idx != -1:
