@@ -1,21 +1,37 @@
+from dataclasses import dataclass
 from argparse import ArgumentParser
+import sys
+from pathlib import Path
 from tabulate import tabulate
 
-from transcript import *
+from transcript import Course, Err, PercentageGrade, Transcript, parse_transcript_file
 
-# Return [c_1, ..., c_n] where: 
-# c_1, ..., c_n don't already have a binary passing grade.
-# c_1 is the most harmful course for the gpa.
-# c_n is the most beneficial course for the gpa.
-def calculate_courses_sorted_by_deviation_from_gpa(transcript: Transcript) -> list[Course]:
+# Return the percentage-graded courses, sorted from most harmful to most beneficial for GPA.
+@dataclass(frozen=True)
+class CourseGpaImpact:
+    course: Course
+    gpa_impact: float
+
+def calculate_courses_sorted_by_deviation_from_gpa(transcript: Transcript) -> list[CourseGpaImpact]:
     def calculate_gpa(transcript: Transcript) -> float:
-        weighted_sum = sum([c.credits * c.grade.score for c in transcript.courses if isinstance(c.grade, PercentageGrade)])
-        relevant_credits = sum([c.credits for c in transcript.courses if isinstance(c.grade, PercentageGrade)])
+        weighted_sum = sum(
+            c.credits * c.grade.score
+            for c in transcript.courses
+            if isinstance(c.grade, PercentageGrade)
+        )
+        relevant_credits = sum(
+            c.credits
+            for c in transcript.courses
+            if isinstance(c.grade, PercentageGrade)
+        )
+        if relevant_credits == 0:
+            raise ValueError("Transcript has no percentage-graded courses")
         return weighted_sum / relevant_credits
     
     gpa = calculate_gpa(transcript)
     return [
-        course for course, _ 
+        CourseGpaImpact(course=course, gpa_impact=impact)
+        for course, impact
         in sorted(
             [
                 (c, (c.grade.score - gpa) * c.credits)
@@ -27,7 +43,12 @@ def calculate_courses_sorted_by_deviation_from_gpa(transcript: Transcript) -> li
     ]
 
 def main(transcript_file_path: Path):
-    transcript = parse_transcript_file(transcript_file_path)
+    transcript_result = parse_transcript_file(transcript_file_path)
+    if isinstance(transcript_result, Err):
+        print(transcript_result.error, file=sys.stderr)
+        raise SystemExit(1)
+
+    transcript = transcript_result.value
     courses = calculate_courses_sorted_by_deviation_from_gpa(transcript)
     print("\n\n"
           "These are the courses that you can use a binary passing grade for, "
@@ -38,8 +59,14 @@ def main(transcript_file_path: Path):
 
     print(tabulate(
         [
-            [c.id, c.name, c.credits, c.grade.score, c.semester] # type: ignore
-            for c in courses
+            [
+                course.course.id,
+                course.course.name,
+                course.course.credits,
+                course.course.grade.score,
+                course.course.semester,
+            ]
+            for course in courses
         ],
         headers=["ID", "Name", "Credits", "Grade", "Semester"],
         tablefmt="rounded_outline",
