@@ -2,9 +2,11 @@ from dataclasses import dataclass
 from argparse import ArgumentParser
 import sys
 from pathlib import Path
-from tabulate import tabulate
 
-from transcript import Course, Err, PercentageGrade, Transcript, parse_transcript_file
+from tabulate import tabulate
+from returns.result import Success, Failure, Result
+
+from transcript import Course, PercentageGrade, Transcript, parse_transcript_file
 
 # Return the percentage-graded courses, sorted from most harmful to most beneficial for GPA.
 @dataclass(frozen=True)
@@ -42,13 +44,13 @@ def calculate_courses_sorted_by_deviation_from_gpa(transcript: Transcript) -> li
         )
     ]
 
-def main(transcript_file_path: Path):
+def main(transcript_file_path: Path) -> None:
     transcript_result = parse_transcript_file(transcript_file_path)
-    if isinstance(transcript_result, Err):
-        print(transcript_result.error, file=sys.stderr)
+    if isinstance(transcript_result, Failure):
+        print(transcript_result.failure().message, file=sys.stderr)
         raise SystemExit(1)
 
-    transcript = transcript_result.value
+    transcript = transcript_result.unwrap()
     courses = calculate_courses_sorted_by_deviation_from_gpa(transcript)
     print("\n\n"
           "These are the courses that you can use a binary passing grade for, "
